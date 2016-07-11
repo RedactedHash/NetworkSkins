@@ -3,10 +3,13 @@ using ColossalFramework;
 using NetworkSkins.Detour;
 using UnityEngine;
 using System;
+using System.IO;
+using NetworkSkins.Data;
+using NetworkSkins.Props;
 
-namespace NetworkSkins.Textures
+namespace NetworkSkins.Skins
 {
-    public struct NetSegmentDetour
+    public struct NetSegmentDetour // TODO detour
     {
         private static bool deployed = false;
 
@@ -24,6 +27,38 @@ namespace NetworkSkins.Textures
 
                 deployed = true;
             }
+
+            // TEST CODE
+            /*
+            if (false)
+            {
+                var networkName = "Basic Road";
+
+                var segmentMaterial = PrefabCollection<NetInfo>.FindLoaded(networkName).m_segments[0].m_segmentMaterial;
+                Texture2D texture2D;
+                if (File.Exists("tt/" + networkName + "_D.png"))
+                {
+                    texture2D = new Texture2D(1, 1);
+                    texture2D.LoadImage(File.ReadAllBytes("tt/" + networkName + "_D.png"));
+                    texture2D.anisoLevel = 0;
+                    segmentMaterial.SetTexture("_MainTex", texture2D);
+                }
+                if (File.Exists("tt/" + networkName + "_APR.png"))
+                {
+                    texture2D = new Texture2D(1, 1);
+                    texture2D.LoadImage(File.ReadAllBytes("tt/" + networkName + "_APR.png"));
+                    texture2D.anisoLevel = 0;
+                    segmentMaterial.SetTexture("_APRMap", texture2D);
+                }
+                if (File.Exists("tt/" + networkName + "_XYS.png"))
+                {
+                    texture2D = new Texture2D(1, 1);
+                    texture2D.LoadImage(File.ReadAllBytes("tt/" + networkName + "_XYS.png"));
+                    texture2D.anisoLevel = 0;
+                    segmentMaterial.SetTexture("_XYSMap", texture2D);
+                }
+            }
+            */
         }
 
         public static void Revert()
@@ -41,7 +76,12 @@ namespace NetworkSkins.Textures
         // NetSegment
         private void RenderInstance(RenderManager.CameraInfo cameraInfo, ushort segmentID, int layerMask, NetInfo info, ref RenderManager.Instance data)
         {
+            
+
+            // mod begin
             var _this = NetManager.instance.m_segments.m_buffer[segmentID];
+            var skin = SegmentDataManager.Instance.SegmentToSegmentDataMap?[segmentID]?.SkinPrefab;
+            // mod end
 
             NetManager instance = Singleton<NetManager>.instance;
             if (data.m_dirty)
@@ -174,7 +214,9 @@ namespace NetworkSkins.Textures
                             }
                             NetManager expr_5D7_cp_0 = instance;
                             expr_5D7_cp_0.m_drawCallData.m_defaultCalls = expr_5D7_cp_0.m_drawCallData.m_defaultCalls + 1;
-                            Graphics.DrawMesh(segment.m_segmentMesh, data.m_position, data.m_rotation, segment.m_segmentMaterial, segment.m_layer, null, 0, instance.m_materialBlock); // TODO
+
+                            if(skin == null) Graphics.DrawMesh(segment.m_segmentMesh, data.m_position, data.m_rotation, segment.m_segmentMaterial, segment.m_layer, null, 0, instance.m_materialBlock); // TODO
+                            else if(skin.SegmentMaterials[i] != null) Graphics.DrawMesh(segment.m_segmentMesh, data.m_position, data.m_rotation, skin.SegmentMaterials[i], segment.m_layer, null, 0, instance.m_materialBlock); // TODO
                         }
                         else
                         {

@@ -2,6 +2,7 @@
 using ColossalFramework;
 using ColossalFramework.IO;
 using NetworkSkins.Net;
+using NetworkSkins.Skins;
 using UnityEngine;
 
 // ReSharper disable NonReadonlyMemberInGetHashCode
@@ -20,6 +21,9 @@ namespace NetworkSkins.Data
             StreetLight = 8,
             NoDecals = 16,
             RepeatDistances = 32,
+            CreatePavement = 64,
+            CreateGravel = 128,
+            Skin = 256
         }
 
         // After setting these fields once, they should only be read!
@@ -28,6 +32,7 @@ namespace NetworkSkins.Data
         public string TreeMiddle;
         public string TreeRight;
         public string StreetLight;
+        public string Skin;
         public Vector4 RepeatDistances; // x -> left tree, y -> middle tree, z -> right tree, w -> street light
 
         [NonSerialized]
@@ -38,6 +43,8 @@ namespace NetworkSkins.Data
         public TreeInfo TreeRightPrefab;
         [NonSerialized]
         public PropInfo StreetLightPrefab;
+        [NonSerialized]
+        public SkinsDefinition.Skin SkinPrefab;
         [NonSerialized]
         public int UsedCount = 0;
 
@@ -53,11 +60,13 @@ namespace NetworkSkins.Data
             TreeRight = segmentData.TreeRight;
             StreetLight = segmentData.StreetLight;
             RepeatDistances = segmentData.RepeatDistances;
+            Skin = segmentData.Skin;
 
             TreeLeftPrefab = segmentData.TreeLeftPrefab;
             TreeMiddlePrefab = segmentData.TreeMiddlePrefab;
             TreeRightPrefab = segmentData.TreeRightPrefab;
             StreetLightPrefab = segmentData.StreetLightPrefab;
+            SkinPrefab = segmentData.SkinPrefab;
         }
 
         public void SetPrefabFeature<P>(FeatureFlags feature, P prefab = null) where P : PrefabInfo
@@ -82,6 +91,14 @@ namespace NetworkSkins.Data
             var nameField = GetType().GetField(flagName);
 
             nameField?.SetValue(this, value); //TODO
+        }
+
+        public void SetSkin(SkinsDefinition.Skin value)
+        {
+            Features = Features.SetFlags(FeatureFlags.Skin);
+
+            Skin = value.Identifier;
+            SkinPrefab = value;
         }
 
         public void UnsetFeature(FeatureFlags feature)
@@ -111,6 +128,8 @@ namespace NetworkSkins.Data
                 s.WriteSharedString(StreetLight);
             if (Features.IsFlagSet(FeatureFlags.RepeatDistances))
                 s.WriteVector4(RepeatDistances);
+            if (Features.IsFlagSet(FeatureFlags.Skin))
+                s.WriteSharedString(Skin);
         }
 
         public void Deserialize(DataSerializer s)
@@ -127,6 +146,8 @@ namespace NetworkSkins.Data
                 StreetLight = s.ReadSharedString();
             if (Features.IsFlagSet(FeatureFlags.RepeatDistances))
                 RepeatDistances = s.ReadVector4();
+            if (Features.IsFlagSet(FeatureFlags.Skin))
+                Skin = s.ReadSharedString();
         }
 
         public void AfterDeserialize(DataSerializer s) {}
@@ -145,7 +166,8 @@ namespace NetworkSkins.Data
                 && string.Equals(TreeMiddle, other.TreeMiddle)
                 && string.Equals(TreeRight, other.TreeRight)
                 && string.Equals(StreetLight, other.StreetLight)
-                && (Features.IsFlagSet(FeatureFlags.RepeatDistances) == Vector4.Equals(RepeatDistances, other.RepeatDistances));
+                && (Features.IsFlagSet(FeatureFlags.RepeatDistances) == Vector4.Equals(RepeatDistances, other.RepeatDistances))
+                                && string.Equals(Skin, other.Skin);
         }
 
         public override int GetHashCode()
@@ -158,6 +180,7 @@ namespace NetworkSkins.Data
                 hashCode = (hashCode*397) ^ (TreeRight?.GetHashCode() ?? 0);
                 hashCode = (hashCode*397) ^ (StreetLight?.GetHashCode() ?? 0);
                 hashCode = (hashCode*397) ^ (Features.IsFlagSet(FeatureFlags.RepeatDistances) ? RepeatDistances.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (Skin?.GetHashCode() ?? 0);
                 return hashCode;
             }
         }
@@ -178,6 +201,7 @@ namespace NetworkSkins.Data
             FindPrefab(TreeMiddle, out TreeMiddlePrefab);
             FindPrefab(TreeRight, out TreeRightPrefab);
             FindPrefab(StreetLight, out StreetLightPrefab);
+            SkinPrefab = SkinManager.Instance.GetSkin(Skin);
         }
 
         private static void FindPrefab<T>(string prefabName, out T prefab) where T : PrefabInfo

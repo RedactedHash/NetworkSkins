@@ -36,6 +36,13 @@ namespace NetworkSkins.Net
                 subPrefabs[(int)NetType.Elevated] = netAI.m_elevatedInfo;
                 subPrefabs[(int)NetType.Bridge] = netAI.m_bridgeInfo;
             }
+            else if (prefab.m_netAI is QuayAI)
+            {
+                subPrefabs[(int)NetType.Tunnel] = null;
+                subPrefabs[(int)NetType.Ground] = prefab;
+                subPrefabs[(int)NetType.Elevated] = null;
+                subPrefabs[(int)NetType.Bridge] = null;
+            }
             return subPrefabs;
         }
 

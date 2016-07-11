@@ -83,7 +83,9 @@
     <Compile Include="Props\UILightOption.cs" />
     <Compile Include="Props\UITreeDistanceOption.cs" />
     <Compile Include="Props\UITreeOption.cs" />
-    <Compile Include="Textures\NetSegmentDetour.cs" />
+    <Compile Include="Skins\SkinsDefinition.cs" />
+    <Compile Include="Skins\NetSegmentDetour.cs" />
+    <Compile Include="Skins\UISkinOption.cs" />
     <Compile Include="UI\UIDropDownOption.cs" />
     <Compile Include="UI\UIDropDownTextFieldOption.cs" />
     <Compile Include="UI\UIOption.cs" />

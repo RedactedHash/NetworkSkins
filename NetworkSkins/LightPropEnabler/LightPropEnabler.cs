@@ -110,8 +110,8 @@ namespace NetworkSkins.LightPropEnabler
 
                         if (propDefPrefab == null)
                         {
-                            lightPropsDefParseErrors.Add(asset.package.packageName + " - Prop with name " + propDef.Name +
-                                                         " not loaded.");
+                            //lightPropsDefParseErrors.Add(asset.package.packageName + " - Prop with name " + propDef.Name +
+                            //                             " not loaded.");
                             continue;
                         }
 

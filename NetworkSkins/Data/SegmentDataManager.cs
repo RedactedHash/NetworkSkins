@@ -226,29 +226,19 @@ namespace NetworkSkins.Data
 
         private void SerializeSegmentData()
         {
-            var saveRequired = CleanupData();
+            CleanupData();
 
-            // check if data must be saved
-            if (saveRequired)
+            byte[] data;
+
+            using (var stream = new MemoryStream())
             {
-                byte[] data;
-
-                using (var stream = new MemoryStream())
-                {
-                    DataSerializer.SerializeArray(stream, DataSerializer.Mode.Memory, DataVersion, SegmentToSegmentDataMap);
-                    data = stream.ToArray();
-                }
-
-                serializableDataManager.SaveData(SegmentDataId, data);
-
-                Debug.LogFormat("Network Skins: Segment Data Saved (Data length: {0})", data.Length);
+                DataSerializer.SerializeArray(stream, DataSerializer.Mode.Memory, DataVersion, SegmentToSegmentDataMap);
+                data = stream.ToArray();
             }
-            else
-            {
-                serializableDataManager.EraseData(SegmentDataId);
 
-                Debug.Log("Network Skins: Segment Data Cleared!");
-            }
+            serializableDataManager.SaveData(SegmentDataId, data);
+
+            Debug.LogFormat("Network Skins: Segment Data Saved (Data length: {0})", data.Length);
         }
 
         private void SerializeActiveOptions()
@@ -365,11 +355,8 @@ namespace NetworkSkins.Data
         /// <summary>
         /// Validates the data. Removes data which is no longer used (should never happen).
         /// </summary>
-        /// <returns>If there is data applied to any segment</returns>
-        private bool CleanupData()
+        private void CleanupData()
         {
-            var result = false;
-
             if(_usedSegmentData != null)
             foreach (var segmentData in _usedSegmentData.ToArray())
             {
@@ -377,8 +364,6 @@ namespace NetworkSkins.Data
                 var segmentOptionsUsedCount = _selectedSegmentOptions.Values.Count(segmentData.Equals);
                 var assetOptionsUsedCount = _assetSegmentOptions.Values.Count(segmentData.Equals);
                 var calculatedUsedCount = segmentMapUsedCount + segmentOptionsUsedCount + assetOptionsUsedCount;
-
-                if (segmentMapUsedCount > 0) result = true;
 
                 if (segmentData.UsedCount != calculatedUsedCount)
                 {
@@ -404,8 +389,6 @@ namespace NetworkSkins.Data
                     DeleteIfNotInUse(segmentData);
                 }
             }
-
-            return result;
         }
 
         private void DeleteIfNotInUse(SegmentData segmentData)
