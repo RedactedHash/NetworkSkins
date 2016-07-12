@@ -13,17 +13,25 @@ namespace NetworkSkins.Skins
     {
         private static bool deployed = false;
 
-        private static RedirectCallsState _NetLane_RenderInstance_state;
-        private static MethodInfo _NetLane_RenderInstance_original;
-        private static MethodInfo _NetLane_RenderInstance_detour;
+        private static RedirectCallsState _NetSegment_RenderInstance_state;
+        private static MethodInfo _NetSegment_RenderInstance_original;
+        private static MethodInfo _NetSegment_RenderInstance_detour;
+
+        private static RedirectCallsState _NetSegment_RenderLod_state;
+        private static MethodInfo _NetSegment_RenderLod_original;
+        private static MethodInfo _NetSegment_RenderLod_detour;
 
         public static void Deploy()
         {
             if (!deployed)
             {
-                _NetLane_RenderInstance_original = typeof(NetSegment).GetMethod("RenderInstance", BindingFlags.Instance | BindingFlags.NonPublic);
-                _NetLane_RenderInstance_detour = typeof(NetSegmentDetour).GetMethod("RenderInstance", BindingFlags.Instance | BindingFlags.NonPublic);
-                _NetLane_RenderInstance_state = RedirectionHelper.RedirectCalls(_NetLane_RenderInstance_original, _NetLane_RenderInstance_detour);
+                _NetSegment_RenderInstance_original = typeof(NetSegment).GetMethod("RenderInstance", BindingFlags.Instance | BindingFlags.NonPublic);
+                _NetSegment_RenderInstance_detour = typeof(NetSegmentDetour).GetMethod("RenderInstance", BindingFlags.Instance | BindingFlags.NonPublic);
+                _NetSegment_RenderInstance_state = RedirectionHelper.RedirectCalls(_NetSegment_RenderInstance_original, _NetSegment_RenderInstance_detour);
+
+                _NetSegment_RenderLod_original = typeof(NetSegment).GetMethod("RenderLod", BindingFlags.Static | BindingFlags.Public);
+                _NetSegment_RenderLod_detour = typeof(NetSegmentDetour).GetMethod("RenderLod", BindingFlags.Static | BindingFlags.Public);
+                _NetSegment_RenderLod_state = RedirectionHelper.RedirectCalls(_NetSegment_RenderLod_original, _NetSegment_RenderLod_detour);
 
                 deployed = true;
             }
@@ -65,9 +73,13 @@ namespace NetworkSkins.Skins
         {
             if (deployed)
             {
-                RedirectionHelper.RevertRedirect(_NetLane_RenderInstance_original, _NetLane_RenderInstance_state);
-                _NetLane_RenderInstance_original = null;
-                _NetLane_RenderInstance_detour = null;
+                RedirectionHelper.RevertRedirect(_NetSegment_RenderInstance_original, _NetSegment_RenderInstance_state);
+                _NetSegment_RenderInstance_original = null;
+                _NetSegment_RenderInstance_detour = null;
+
+                RedirectionHelper.RevertRedirect(_NetSegment_RenderLod_original, _NetSegment_RenderLod_state);
+                _NetSegment_RenderLod_original = null;
+                _NetSegment_RenderLod_detour = null;
 
                 deployed = false;
             }
@@ -293,6 +305,69 @@ namespace NetworkSkins.Skins
                 }
             }
         }
+        // NetSegment
+        public static void RenderLod(RenderManager.CameraInfo cameraInfo, NetInfo.LodValue lod)
+        {
+            NetManager instance = Singleton<NetManager>.instance;
+            MaterialPropertyBlock materialBlock = instance.m_materialBlock;
+            materialBlock.Clear();
+            for (int i = 0; i < lod.m_lodCount; i++)
+            {
+                materialBlock.AddMatrix(instance.ID_LeftMatrices[i], lod.m_leftMatrices[i]);
+                materialBlock.AddMatrix(instance.ID_RightMatrices[i], lod.m_rightMatrices[i]);
+                materialBlock.AddVector(instance.ID_MeshScales[i], lod.m_meshScales[i]);
+                materialBlock.AddVector(instance.ID_ObjectIndices[i], lod.m_objectIndices[i]);
+                materialBlock.AddVector(instance.ID_MeshLocations[i], lod.m_meshLocations[i]);
+            }
+            Mesh mesh;
+            int num;
+            if (lod.m_lodCount <= 1)
+            {
+                mesh = lod.m_key.m_mesh.m_mesh1;
+                num = 1;
+            }
+            else if (lod.m_lodCount <= 4)
+            {
+                mesh = lod.m_key.m_mesh.m_mesh4;
+                num = 4;
+            }
+            else
+            {
+                mesh = lod.m_key.m_mesh.m_mesh8;
+                num = 8;
+            }
+            for (int j = lod.m_lodCount; j < num; j++)
+            {
+                materialBlock.AddMatrix(instance.ID_LeftMatrices[j], default(Matrix4x4));
+                materialBlock.AddMatrix(instance.ID_RightMatrices[j], default(Matrix4x4));
+                materialBlock.AddVector(instance.ID_MeshScales[j], Vector4.zero);
+                materialBlock.AddVector(instance.ID_ObjectIndices[j], Vector4.zero);
+                materialBlock.AddVector(instance.ID_MeshLocations[j], cameraInfo.m_forward * -100000f);
+            }
+            if (lod.m_surfaceTexA != null)
+            {
+                materialBlock.AddTexture(instance.ID_SurfaceTexA, lod.m_surfaceTexA);
+                materialBlock.AddTexture(instance.ID_SurfaceTexB, lod.m_surfaceTexB);
+                materialBlock.AddVector(instance.ID_SurfaceMapping, lod.m_surfaceMapping);
+                lod.m_surfaceTexA = null;
+                lod.m_surfaceTexB = null;
+            }
+            if (mesh != null)
+            {
+                Bounds bounds = default(Bounds);
+                bounds.SetMinMax(lod.m_lodMin - new Vector3(100f, 100f, 100f), lod.m_lodMax + new Vector3(100f, 100f, 100f));
+                mesh.bounds = bounds;
+                lod.m_lodMin = new Vector3(100000f, 100000f, 100000f);
+                lod.m_lodMax = new Vector3(-100000f, -100000f, -100000f);
+                NetManager expr_2AD_cp_0 = instance;
+                expr_2AD_cp_0.m_drawCallData.m_lodCalls = expr_2AD_cp_0.m_drawCallData.m_lodCalls + 1;
+                NetManager expr_2C0_cp_0 = instance;
+                expr_2C0_cp_0.m_drawCallData.m_batchedCalls = expr_2C0_cp_0.m_drawCallData.m_batchedCalls + (lod.m_lodCount - 1);
+                Graphics.DrawMesh(mesh, Matrix4x4.identity, lod.m_material, lod.m_key.m_layer, null, 0, materialBlock);
+            }
+            lod.m_lodCount = 0;
+        }
+
 
     }
 }

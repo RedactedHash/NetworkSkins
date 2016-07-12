@@ -196,7 +196,7 @@ namespace NetworkSkins.Skins
             public Material[] SegmentMaterials;
 
             [XmlIgnore]
-            public Material[] SegmentLodMaterials;
+            public NetInfo.LodValue[] SegmentCombinedLods;
 
             public void CreateMaterials(string basePath, HashSet<string> log)
             {
@@ -206,12 +206,12 @@ namespace NetworkSkins.Skins
                 if (net == null) return;
 
                 SegmentMaterials = new Material[net.m_segments.Length];
-                SegmentLodMaterials = new Material[net.m_segments.Length];
+                SegmentCombinedLods = new NetInfo.LodValue[net.m_segments.Length];
 
-                for(var i = 0; i < net.m_segments.Length; i++)
+                for (var i = 0; i < net.m_segments.Length; i++)
                 {
                     SegmentMaterials[i] = net.m_segments[i].m_segmentMaterial;
-                    SegmentLodMaterials[i] = net.m_segments[i].m_lodMaterial;
+                    SegmentCombinedLods[i] = net.m_segments[i].m_combinedLod;
                 }
 
                 foreach (var segment in Segments)
@@ -225,8 +225,8 @@ namespace NetworkSkins.Skins
                     if (segment.Disabled)
                     {
                          SegmentMaterials[segment.Index] = null;
-                         SegmentLodMaterials[segment.Index] = null;
-                        return; // TODO meshes
+                         SegmentCombinedLods[segment.Index] = null;
+                         continue; // TODO meshes
                     }
 
                     // DETAIL
@@ -256,6 +256,9 @@ namespace NetworkSkins.Skins
                         SegmentMaterials[segment.Index] = material;
                     }
 
+                    // TODO destroy material on unload
+
+                    /*
                     // LOD
                     mainTex = segment.LodMainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segment.LodMainTexPath));
                     xysMap = segment.LodXysPath == null ? null : LoadTexture(Path.Combine(basePath, segment.LodXysPath));
@@ -263,7 +266,8 @@ namespace NetworkSkins.Skins
 
                     if (mainTex != null || xysMap != null || aprMap != null)
                     {
-                        var material = new Material(net.m_segments[segment.Index].m_lodMaterial);
+                        var originalMaterial = net.m_segments[segment.Index].m_lodMaterial;
+                        var material = new Material(originalMaterial);
 
                         if (mainTex != null)
                         {
@@ -280,12 +284,30 @@ namespace NetworkSkins.Skins
                             material.SetTexture("_APRMap", aprMap);
                         }
 
-                        SegmentLodMaterials[segment.Index] = material;
+                        var originalLodValue = net.m_segments[segment.Index].m_combinedLod;
+
+                        net.m_segments[segment.Index].m_lodMaterial = material;
+                        net.m_segments[segment.Index].m_combinedLod = null;
+
+                        net.InitMeshData(net.m_segments[segment.Index], new Rect(), 
+                            material.GetTexture("_MainTex") as Texture2D, 
+                            material.GetTexture("_XYSMap") as Texture2D,
+                            material.GetTexture("APRMap") as Texture2D); // TODO
+
+                        SegmentCombinedLods[segment.Index] = net.m_segments[segment.Index].m_combinedLod;
+
+                        net.m_segments[segment.Index].m_lodMaterial = originalMaterial;
+                        net.m_segments[segment.Index].m_combinedLod = originalLodValue;
+
+                        // TODO destroy material on unload
                     }
+                    */
+
+                // TODO custom LODValue manager with custom atlas
                 }
             }
 
-            private Texture LoadTexture(string texturePath)
+            private Texture2D LoadTexture(string texturePath)
             {
                 if (!File.Exists(texturePath)) return null;
 
