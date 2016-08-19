@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Xml.Serialization;
 using ColossalFramework;
 using ColossalFramework.Plugins;
@@ -19,7 +20,11 @@ namespace NetworkSkins.Skins
     {
         public HashSet<string> skinsDefParseErrors;
 
+        public static readonly Dictionary<NetInfo, int> originalSegmentCounts = new Dictionary<NetInfo, int>(); 
+
         private readonly Dictionary<string, SkinsDefinition.Skin> skinMap = new Dictionary<string, SkinsDefinition.Skin>();
+
+        private static GameObject skinLoaderGO;
 
         public static SkinManager Instance;
 
@@ -30,17 +35,19 @@ namespace NetworkSkins.Skins
             Instance = this;
 
             NetSegmentDetour.Deploy();
+            NetNodeDetour.Deploy();
 
-            RenderManagerDetour.EventUpdateDataPre += UpdateData;
+            if (skinLoaderGO == null) skinLoaderGO = new GameObject("NS SkinLoaders");
+
+            ParseSkinDefs();
         }
 
         public override void OnReleased()
         {
             base.OnReleased();
 
-            RenderManagerDetour.EventUpdateDataPre -= UpdateData;
-
             NetSegmentDetour.Revert();
+            NetNodeDetour.Revert();
 
             Instance = null;
         }
@@ -64,14 +71,17 @@ namespace NetworkSkins.Skins
             base.OnLevelUnloading();
 
             skinMap.Clear();
+            originalSegmentCounts.Clear();
         }
 
-        public void UpdateData(SimulationManager.UpdateMode mode)
+        public void ParseSkinDefs()
         {
             try
             {
                 skinsDefParseErrors = new HashSet<string>();
                 var checkedPaths = new List<string>();
+
+                // TODO save original node/segment count
 
                 foreach (var pluginInfo in PluginManager.instance.GetPluginsInfo().Where(pluginInfo => pluginInfo.isEnabled))
                 {
@@ -115,9 +125,19 @@ namespace NetworkSkins.Skins
                             continue;
                         }
 
+                        if (skin?.NetworkName == null)
+                        {
+                            skinsDefParseErrors.Add($"Skin '{skin.DisplayName}': Network name not defined");
+                            continue;
+                        }
+
+
                         skin.Identifier = skin.NetworkName + "." + skin.Identifier;
 
-                        skin.CreateMaterials(pluginInfo.modPath, skinsDefParseErrors);
+                        var loader = skinLoaderGO.AddComponent<SkinLoader>();
+                        loader.skin = skin;
+                        loader.path = pluginInfo.modPath;
+                        loader.log = skinsDefParseErrors;
 
                         skinMap.Add(skin.Identifier, skin);
                     }
@@ -193,50 +213,72 @@ namespace NetworkSkins.Skins
             public List<Segment> Segments { get; set; }
 
             [XmlIgnore]
-            public Material[] SegmentMaterials;
+            public int[] segmentRedirectMap;
 
-            [XmlIgnore]
-            public NetInfo.LodValue[] SegmentCombinedLods;
+            // TODO track materials/textures
 
-            public void CreateMaterials(string basePath, HashSet<string> log)
+            public void CreateMaterials(string basePath, Dictionary<NetInfo, int> originalSegmentCounts, NetInfo net, HashSet<string> log)
             {
-                if (NetworkName == null) return;
-
-                var net = PrefabCollection<NetInfo>.FindLoaded(NetworkName);
-                if (net == null) return;
-
-                SegmentMaterials = new Material[net.m_segments.Length];
-                SegmentCombinedLods = new NetInfo.LodValue[net.m_segments.Length];
-
-                for (var i = 0; i < net.m_segments.Length; i++)
+                var InitSegmentInfo = typeof (NetInfo).GetMethod("InitSegmentInfo", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (InitSegmentInfo == null)
                 {
-                    SegmentMaterials[i] = net.m_segments[i].m_segmentMaterial;
-                    SegmentCombinedLods[i] = net.m_segments[i].m_combinedLod;
+                    log.Add($"InitSegmentInfo not found");
+                    return;
                 }
 
-                foreach (var segment in Segments)
+                if (net == null)
                 {
-                    if (segment.Index < 0 || segment.Index >= net.m_segments.Length)
+                    log.Add($"Skin '{DisplayName}': Network '{NetworkName}' not found");
+                    return; 
+                }
+
+                if(net.m_segments == null)
+                {
+                    log.Add($"Skin '{DisplayName}': No segments found in network '{NetworkName}'");
+                    return;
+                }
+
+                var newNetSegmentsArray = new List<NetInfo.Segment>(net.m_segments);
+
+                int originalSegmentCount;
+                if (!originalSegmentCounts.TryGetValue(net, out originalSegmentCount))
+                {
+                    originalSegmentCount = net.m_segments.Length;
+                    originalSegmentCounts.Add(net, originalSegmentCount);
+                }
+
+                segmentRedirectMap = new int[originalSegmentCount];
+                for (var i = 0; i < originalSegmentCount; i++)
+                {
+                    segmentRedirectMap[i] = i;
+                }
+
+
+                foreach (var segmentDef in Segments)
+                {
+                    if (segmentDef.Index < 0 || segmentDef.Index >= originalSegmentCount)
                     {
-                        log.Add($"Skin '{DisplayName}': Invalid Segment index {segment.Index}");
+                        log.Add($"Skin '{DisplayName}': Invalid Segment index {segmentDef.Index}");
                         continue;
                     }
 
-                    if (segment.Disabled)
-                    {
-                         SegmentMaterials[segment.Index] = null;
-                         SegmentCombinedLods[segment.Index] = null;
-                         continue; // TODO meshes
-                    }
-
                     // DETAIL
-                    var mainTex = segment.MainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segment.MainTexPath));
-                    var xysMap = segment.XysPath == null ? null : LoadTexture(Path.Combine(basePath, segment.XysPath));
-                    var aprMap = segment.AprPath == null ? null : LoadTexture(Path.Combine(basePath, segment.AprPath));
+                    var mainTex = segmentDef.MainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.MainTexPath));
+                    var xysMap = segmentDef.XysPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.XysPath));
+                    var aprMap = segmentDef.AprPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.AprPath));
+
+                    var originalSegment = net.m_segments[segmentDef.Index];
+                    if(originalSegment == null)
+                    {
+                        log.Add($"Skin '{DisplayName}': Original Segment {segmentDef.Index} is null");
+                        continue;
+                    }
+
+                    var material = originalSegment.m_segmentMaterial;
 
                     if (mainTex != null || xysMap != null || aprMap != null)
                     {
-                        var material = new Material(net.m_segments[segment.Index].m_segmentMaterial);
+                        material = new Material(material);
 
                         if (mainTex != null)
                         {
@@ -252,59 +294,56 @@ namespace NetworkSkins.Skins
                         {
                             material.SetTexture("_APRMap", aprMap);
                         }
-
-                        SegmentMaterials[segment.Index] = material;
                     }
 
-                    // TODO destroy material on unload
+                    var lodMaterial = originalSegment.m_lodMaterial;
 
-                    /*
                     // LOD
-                    mainTex = segment.LodMainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segment.LodMainTexPath));
-                    xysMap = segment.LodXysPath == null ? null : LoadTexture(Path.Combine(basePath, segment.LodXysPath));
-                    aprMap = segment.LodXysPath == null ? null : LoadTexture(Path.Combine(basePath, segment.LodAprPath));
+                    mainTex = segmentDef.LodMainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodMainTexPath));
+                    xysMap = segmentDef.LodXysPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodXysPath));
+                    aprMap = segmentDef.LodAprPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodAprPath));
 
                     if (mainTex != null || xysMap != null || aprMap != null)
                     {
-                        var originalMaterial = net.m_segments[segment.Index].m_lodMaterial;
-                        var material = new Material(originalMaterial);
+                        lodMaterial = new Material(lodMaterial);
 
                         if (mainTex != null)
                         {
-                            material.SetTexture("_MainTex", mainTex);
+                            lodMaterial.SetTexture("_MainTex", mainTex);
                         }
 
                         if (xysMap != null)
                         {
-                            material.SetTexture("_XYSMap", xysMap);
+                            lodMaterial.SetTexture("_XYSMap", xysMap);
                         }
 
                         if (aprMap != null)
                         {
-                            material.SetTexture("_APRMap", aprMap);
+                            lodMaterial.SetTexture("_APRMap", aprMap);
                         }
-
-                        var originalLodValue = net.m_segments[segment.Index].m_combinedLod;
-
-                        net.m_segments[segment.Index].m_lodMaterial = material;
-                        net.m_segments[segment.Index].m_combinedLod = null;
-
-                        net.InitMeshData(net.m_segments[segment.Index], new Rect(), 
-                            material.GetTexture("_MainTex") as Texture2D, 
-                            material.GetTexture("_XYSMap") as Texture2D,
-                            material.GetTexture("APRMap") as Texture2D); // TODO
-
-                        SegmentCombinedLods[segment.Index] = net.m_segments[segment.Index].m_combinedLod;
-
-                        net.m_segments[segment.Index].m_lodMaterial = originalMaterial;
-                        net.m_segments[segment.Index].m_combinedLod = originalLodValue;
-
-                        // TODO destroy material on unload
                     }
-                    */
 
-                // TODO custom LODValue manager with custom atlas
+                    var newSegment = new NetInfo.Segment
+                    {
+                        m_mesh = originalSegment.m_mesh,
+                        m_lodMesh = originalSegment.m_lodMesh,
+                        m_material = material,
+                        m_lodMaterial = lodMaterial,
+                        m_forwardRequired = originalSegment.m_forwardRequired,
+                        m_forwardForbidden = originalSegment.m_forwardForbidden,
+                        m_backwardRequired = originalSegment.m_backwardRequired,
+                        m_backwardForbidden = originalSegment.m_backwardForbidden,
+                        m_emptyTransparent = originalSegment.m_emptyTransparent,
+                        m_disableBendNodes = originalSegment.m_disableBendNodes,
+                        m_lodRenderDistance = originalSegment.m_lodRenderDistance
+                    };
+                    InitSegmentInfo.Invoke(net, new object[] {newSegment, net.m_requireSurfaceMaps});
+
+                    segmentRedirectMap[segmentDef.Index] = newNetSegmentsArray.Count;
+                    newNetSegmentsArray.Add(newSegment);
                 }
+
+                net.m_segments = newNetSegmentsArray.ToArray();
             }
 
             private Texture2D LoadTexture(string texturePath)

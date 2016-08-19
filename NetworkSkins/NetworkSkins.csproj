@@ -83,6 +83,9 @@
     <Compile Include="Props\UILightOption.cs" />
     <Compile Include="Props\UITreeDistanceOption.cs" />
     <Compile Include="Props\UITreeOption.cs" />
+    <Compile Include="Skins\Loading.cs" />
+    <Compile Include="Skins\NetNodeDetour.cs" />
+    <Compile Include="Skins\SkinLoader.cs" />
     <Compile Include="Skins\SkinsDefinition.cs" />
     <Compile Include="Skins\NetSegmentDetour.cs" />
     <Compile Include="Skins\UISkinOption.cs" />

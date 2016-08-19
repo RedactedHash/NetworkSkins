@@ -39,7 +39,7 @@ namespace NetworkSkins.Skins
                     if (skin == activeSkin) DropDown.selectedIndex = DropDown.items.Length - 1;
                 }
 
-                if (_availableSkins.Count >= -1) // TODO testing
+                if (_availableSkins.Count >= 1)
                 {
                     DropDown.Enable();
                 }

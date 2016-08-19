@@ -166,8 +166,8 @@ namespace NetworkSkins.Data
                 && string.Equals(TreeMiddle, other.TreeMiddle)
                 && string.Equals(TreeRight, other.TreeRight)
                 && string.Equals(StreetLight, other.StreetLight)
-                && (Features.IsFlagSet(FeatureFlags.RepeatDistances) == Vector4.Equals(RepeatDistances, other.RepeatDistances))
-                                && string.Equals(Skin, other.Skin);
+                && string.Equals(Skin, other.Skin)
+                && (Features.IsFlagSet(FeatureFlags.RepeatDistances) ? Vector4.Equals(RepeatDistances, other.RepeatDistances) : true);
         }
 
         public override int GetHashCode()

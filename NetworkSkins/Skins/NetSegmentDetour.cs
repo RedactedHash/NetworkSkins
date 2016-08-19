@@ -17,9 +17,13 @@ namespace NetworkSkins.Skins
         private static MethodInfo _NetSegment_RenderInstance_original;
         private static MethodInfo _NetSegment_RenderInstance_detour;
 
-        private static RedirectCallsState _NetSegment_RenderLod_state;
-        private static MethodInfo _NetSegment_RenderLod_original;
-        private static MethodInfo _NetSegment_RenderLod_detour;
+        private static RedirectCallsState _NetSegment_CalculateGroupData_state;
+        private static MethodInfo _NetSegment_CalculateGroupData_original;
+        private static MethodInfo _NetSegment_CalculateGroupData_detour;
+
+        private static RedirectCallsState _NetSegment_PopulateGroupData_state;
+        private static MethodInfo _NetSegment_PopulateGroupData_original;
+        private static MethodInfo _NetSegment_PopulateGroupData_detour;
 
         public static void Deploy()
         {
@@ -29,9 +33,13 @@ namespace NetworkSkins.Skins
                 _NetSegment_RenderInstance_detour = typeof(NetSegmentDetour).GetMethod("RenderInstance", BindingFlags.Instance | BindingFlags.NonPublic);
                 _NetSegment_RenderInstance_state = RedirectionHelper.RedirectCalls(_NetSegment_RenderInstance_original, _NetSegment_RenderInstance_detour);
 
-                _NetSegment_RenderLod_original = typeof(NetSegment).GetMethod("RenderLod", BindingFlags.Static | BindingFlags.Public);
-                _NetSegment_RenderLod_detour = typeof(NetSegmentDetour).GetMethod("RenderLod", BindingFlags.Static | BindingFlags.Public);
-                _NetSegment_RenderLod_state = RedirectionHelper.RedirectCalls(_NetSegment_RenderLod_original, _NetSegment_RenderLod_detour);
+                _NetSegment_CalculateGroupData_original = typeof(NetSegment).GetMethod("CalculateGroupData", BindingFlags.Instance | BindingFlags.Public);
+                _NetSegment_CalculateGroupData_detour = typeof(NetSegmentDetour).GetMethod("CalculateGroupData", BindingFlags.Instance | BindingFlags.Public);
+                _NetSegment_CalculateGroupData_state = RedirectionHelper.RedirectCalls(_NetSegment_CalculateGroupData_original, _NetSegment_CalculateGroupData_detour);
+
+                _NetSegment_PopulateGroupData_original = typeof(NetSegment).GetMethod("PopulateGroupData", BindingFlags.Instance | BindingFlags.Public);
+                _NetSegment_PopulateGroupData_detour = typeof(NetSegmentDetour).GetMethod("PopulateGroupData", BindingFlags.Instance | BindingFlags.Public);
+                _NetSegment_PopulateGroupData_state = RedirectionHelper.RedirectCalls(_NetSegment_PopulateGroupData_original, _NetSegment_PopulateGroupData_detour);
 
                 deployed = true;
             }
@@ -77,9 +85,13 @@ namespace NetworkSkins.Skins
                 _NetSegment_RenderInstance_original = null;
                 _NetSegment_RenderInstance_detour = null;
 
-                RedirectionHelper.RevertRedirect(_NetSegment_RenderLod_original, _NetSegment_RenderLod_state);
-                _NetSegment_RenderLod_original = null;
-                _NetSegment_RenderLod_detour = null;
+                RedirectionHelper.RevertRedirect(_NetSegment_CalculateGroupData_original, _NetSegment_CalculateGroupData_state);
+                _NetSegment_CalculateGroupData_original = null;
+                _NetSegment_CalculateGroupData_detour = null;
+
+                RedirectionHelper.RevertRedirect(_NetSegment_PopulateGroupData_original, _NetSegment_PopulateGroupData_state);
+                _NetSegment_PopulateGroupData_original = null;
+                _NetSegment_PopulateGroupData_detour = null;
 
                 deployed = false;
             }
@@ -92,7 +104,6 @@ namespace NetworkSkins.Skins
 
             // mod begin
             var _this = NetManager.instance.m_segments.m_buffer[segmentID];
-            var skin = SegmentDataManager.Instance.SegmentToSegmentDataMap?[segmentID]?.SkinPrefab;
             // mod end
 
             NetManager instance = Singleton<NetManager>.instance;
@@ -193,9 +204,14 @@ namespace NetworkSkins.Skins
             }
             if (info.m_segments != null)
             {
-                for (int i = 0; i < info.m_segments.Length; i++)
+                // mod begin
+                var skin = SegmentDataManager.Instance.SegmentToSegmentDataMap?[segmentID]?.SkinPrefab;
+                int count;
+                if (!SkinManager.originalSegmentCounts.TryGetValue(info, out count)) count = info.m_segments.Length; // TODO improve performance? array?
+                for (int i = 0; i < count; i++)
                 {
-                    NetInfo.Segment segment = info.m_segments[i];
+                    NetInfo.Segment segment = (skin == null) ? info.m_segments[i] : info.m_segments[skin.segmentRedirectMap[i]];
+                    // mod end
                     bool flag;
                     if (segment.CheckFlags(_this.m_flags, out flag))
                     {
@@ -227,8 +243,7 @@ namespace NetworkSkins.Skins
                             NetManager expr_5D7_cp_0 = instance;
                             expr_5D7_cp_0.m_drawCallData.m_defaultCalls = expr_5D7_cp_0.m_drawCallData.m_defaultCalls + 1;
 
-                            if(skin == null) Graphics.DrawMesh(segment.m_segmentMesh, data.m_position, data.m_rotation, segment.m_segmentMaterial, segment.m_layer, null, 0, instance.m_materialBlock); // TODO
-                            else if(skin.SegmentMaterials[i] != null) Graphics.DrawMesh(segment.m_segmentMesh, data.m_position, data.m_rotation, skin.SegmentMaterials[i], segment.m_layer, null, 0, instance.m_materialBlock); // TODO
+                            Graphics.DrawMesh(segment.m_segmentMesh, data.m_position, data.m_rotation, segment.m_segmentMaterial, segment.m_layer, null, 0, instance.m_materialBlock);
                         }
                         else
                         {
@@ -305,69 +320,208 @@ namespace NetworkSkins.Skins
                 }
             }
         }
-        // NetSegment
-        public static void RenderLod(RenderManager.CameraInfo cameraInfo, NetInfo.LodValue lod)
+
+        public bool CalculateGroupData(ushort segmentID, int layer, ref int vertexCount, ref int triangleCount, ref int objectCount, ref RenderGroup.VertexArrays vertexArrays)
         {
-            NetManager instance = Singleton<NetManager>.instance;
-            MaterialPropertyBlock materialBlock = instance.m_materialBlock;
-            materialBlock.Clear();
-            for (int i = 0; i < lod.m_lodCount; i++)
+            // mod begin
+            var _this = NetManager.instance.m_segments.m_buffer[segmentID];
+            // mod end
+
+            bool result = false;
+            bool flag = false;
+            NetInfo info = _this.Info;
+            if (_this.m_problems != Notification.Problem.None && layer == Singleton<NotificationManager>.instance.m_notificationLayer && Notification.CalculateGroupData(ref vertexCount, ref triangleCount, ref objectCount, ref vertexArrays))
             {
-                materialBlock.AddMatrix(instance.ID_LeftMatrices[i], lod.m_leftMatrices[i]);
-                materialBlock.AddMatrix(instance.ID_RightMatrices[i], lod.m_rightMatrices[i]);
-                materialBlock.AddVector(instance.ID_MeshScales[i], lod.m_meshScales[i]);
-                materialBlock.AddVector(instance.ID_ObjectIndices[i], lod.m_objectIndices[i]);
-                materialBlock.AddVector(instance.ID_MeshLocations[i], lod.m_meshLocations[i]);
+                result = true;
             }
-            Mesh mesh;
-            int num;
-            if (lod.m_lodCount <= 1)
+            if (info.m_lanes != null)
             {
-                mesh = lod.m_key.m_mesh.m_mesh1;
-                num = 1;
+                NetManager instance = Singleton<NetManager>.instance;
+                bool invert;
+                NetNode.Flags flags;
+                NetNode.Flags flags2;
+                if ((_this.m_flags & NetSegment.Flags.Invert) != NetSegment.Flags.None)
+                {
+                    invert = true;
+                    flags = instance.m_nodes.m_buffer[(int)_this.m_endNode].m_flags;
+                    flags2 = instance.m_nodes.m_buffer[(int)_this.m_startNode].m_flags;
+                }
+                else
+                {
+                    invert = false;
+                    flags = instance.m_nodes.m_buffer[(int)_this.m_startNode].m_flags;
+                    flags2 = instance.m_nodes.m_buffer[(int)_this.m_endNode].m_flags;
+                }
+                uint num = _this.m_lanes;
+                int num2 = 0;
+                while (num2 < info.m_lanes.Length && num != 0u)
+                {
+                    if (instance.m_lanes.m_buffer[(int)((UIntPtr)num)].CalculateGroupData(num, info.m_lanes[num2], flags, flags2, invert, layer, ref vertexCount, ref triangleCount, ref objectCount, ref vertexArrays, ref flag))
+                    {
+                        result = true;
+                    }
+                    num = instance.m_lanes.m_buffer[(int)((UIntPtr)num)].m_nextLane;
+                    num2++;
+                }
             }
-            else if (lod.m_lodCount <= 4)
+            if ((info.m_netLayers & 1 << layer) != 0)
             {
-                mesh = lod.m_key.m_mesh.m_mesh4;
-                num = 4;
+                bool flag2 = info.m_segments != null && info.m_segments.Length != 0;
+                if (flag2 || flag)
+                {
+                    result = true;
+                    if (flag2)
+                    {
+                        // mod begin
+                        var skin = SegmentDataManager.Instance.SegmentToSegmentDataMap?[segmentID]?.SkinPrefab;
+                        int count;
+                        if (!SkinManager.originalSegmentCounts.TryGetValue(info, out count)) count = info.m_segments.Length; // TODO improve performance? array?
+                        for (int i = 0; i < count; i++)
+                        {
+                            NetInfo.Segment segment = (skin == null) ? info.m_segments[i] : info.m_segments[skin.segmentRedirectMap[i]];
+                            // mod end
+
+                            bool flag3 = false;
+                            if (segment.m_layer == layer && segment.CheckFlags(_this.m_flags, out flag3) && segment.m_combinedLod != null)
+                            {
+                                NetSegment.CalculateGroupData(segment, ref vertexCount, ref triangleCount, ref objectCount, ref vertexArrays);
+                            }
+                        }
+                    }
+                }
             }
-            else
-            {
-                mesh = lod.m_key.m_mesh.m_mesh8;
-                num = 8;
-            }
-            for (int j = lod.m_lodCount; j < num; j++)
-            {
-                materialBlock.AddMatrix(instance.ID_LeftMatrices[j], default(Matrix4x4));
-                materialBlock.AddMatrix(instance.ID_RightMatrices[j], default(Matrix4x4));
-                materialBlock.AddVector(instance.ID_MeshScales[j], Vector4.zero);
-                materialBlock.AddVector(instance.ID_ObjectIndices[j], Vector4.zero);
-                materialBlock.AddVector(instance.ID_MeshLocations[j], cameraInfo.m_forward * -100000f);
-            }
-            if (lod.m_surfaceTexA != null)
-            {
-                materialBlock.AddTexture(instance.ID_SurfaceTexA, lod.m_surfaceTexA);
-                materialBlock.AddTexture(instance.ID_SurfaceTexB, lod.m_surfaceTexB);
-                materialBlock.AddVector(instance.ID_SurfaceMapping, lod.m_surfaceMapping);
-                lod.m_surfaceTexA = null;
-                lod.m_surfaceTexB = null;
-            }
-            if (mesh != null)
-            {
-                Bounds bounds = default(Bounds);
-                bounds.SetMinMax(lod.m_lodMin - new Vector3(100f, 100f, 100f), lod.m_lodMax + new Vector3(100f, 100f, 100f));
-                mesh.bounds = bounds;
-                lod.m_lodMin = new Vector3(100000f, 100000f, 100000f);
-                lod.m_lodMax = new Vector3(-100000f, -100000f, -100000f);
-                NetManager expr_2AD_cp_0 = instance;
-                expr_2AD_cp_0.m_drawCallData.m_lodCalls = expr_2AD_cp_0.m_drawCallData.m_lodCalls + 1;
-                NetManager expr_2C0_cp_0 = instance;
-                expr_2C0_cp_0.m_drawCallData.m_batchedCalls = expr_2C0_cp_0.m_drawCallData.m_batchedCalls + (lod.m_lodCount - 1);
-                Graphics.DrawMesh(mesh, Matrix4x4.identity, lod.m_material, lod.m_key.m_layer, null, 0, materialBlock);
-            }
-            lod.m_lodCount = 0;
+            return result;
         }
 
+        public void PopulateGroupData(ushort segmentID, int groupX, int groupZ, int layer, ref int vertexIndex, ref int triangleIndex, Vector3 groupPosition, RenderGroup.MeshData data, ref Vector3 min, ref Vector3 max, ref float maxRenderDistance, ref float maxInstanceDistance, ref bool requireSurfaceMaps)
+        {
+            // mod begin
+            var _this = NetManager.instance.m_segments.m_buffer[segmentID];
+            // mod end
+
+            bool flag = false;
+            NetInfo info = _this.Info;
+            NetManager instance = Singleton<NetManager>.instance;
+            if (_this.m_problems != Notification.Problem.None && layer == Singleton<NotificationManager>.instance.m_notificationLayer)
+            {
+                Vector3 middlePosition = _this.m_middlePosition;
+                middlePosition.y += info.m_maxHeight;
+                Notification.PopulateGroupData(_this.m_problems, middlePosition, 1f, groupX, groupZ, ref vertexIndex, ref triangleIndex, groupPosition, data, ref min, ref max, ref maxRenderDistance, ref maxInstanceDistance);
+            }
+            if (info.m_lanes != null)
+            {
+                bool invert;
+                NetNode.Flags flags;
+                NetNode.Flags flags2;
+                if ((_this.m_flags & NetSegment.Flags.Invert) != NetSegment.Flags.None)
+                {
+                    invert = true;
+                    flags = instance.m_nodes.m_buffer[(int)_this.m_endNode].m_flags;
+                    flags2 = instance.m_nodes.m_buffer[(int)_this.m_startNode].m_flags;
+                }
+                else
+                {
+                    invert = false;
+                    flags = instance.m_nodes.m_buffer[(int)_this.m_startNode].m_flags;
+                    flags2 = instance.m_nodes.m_buffer[(int)_this.m_endNode].m_flags;
+                }
+                bool terrainHeight = info.m_segments == null || info.m_segments.Length == 0;
+                float startAngle = (float)_this.m_cornerAngleStart * 0.0245436933f;
+                float endAngle = (float)_this.m_cornerAngleEnd * 0.0245436933f;
+                uint num = _this.m_lanes;
+                int num2 = 0;
+                while (num2 < info.m_lanes.Length && num != 0u)
+                {
+                    instance.m_lanes.m_buffer[(int)((UIntPtr)num)].PopulateGroupData(segmentID, num, info.m_lanes[num2], flags, flags2, startAngle, endAngle, invert, terrainHeight, layer, ref vertexIndex, ref triangleIndex, groupPosition, data, ref min, ref max, ref maxRenderDistance, ref maxInstanceDistance, ref flag);
+                    num = instance.m_lanes.m_buffer[(int)((UIntPtr)num)].m_nextLane;
+                    num2++;
+                }
+            }
+            if ((info.m_netLayers & 1 << layer) != 0)
+            {
+                bool flag2 = info.m_segments != null && info.m_segments.Length != 0;
+                if (flag2 || flag)
+                {
+                    min = Vector3.Min(min, _this.m_bounds.min);
+                    max = Vector3.Max(max, _this.m_bounds.max);
+                    maxRenderDistance = Mathf.Max(maxRenderDistance, 30000f);
+                    maxInstanceDistance = Mathf.Max(maxInstanceDistance, 1000f);
+                    if (flag2)
+                    {
+                        float vScale = info.m_netAI.GetVScale();
+                        Vector3 vector;
+                        Vector3 startDir;
+                        bool smoothStart;
+                        _this.CalculateCorner(segmentID, true, true, true, out vector, out startDir, out smoothStart);
+                        Vector3 vector2;
+                        Vector3 endDir;
+                        bool smoothEnd;
+                        _this.CalculateCorner(segmentID, true, false, true, out vector2, out endDir, out smoothEnd);
+                        Vector3 vector3;
+                        Vector3 startDir2;
+                        _this.CalculateCorner(segmentID, true, true, false, out vector3, out startDir2, out smoothStart);
+                        Vector3 vector4;
+                        Vector3 endDir2;
+                        _this.CalculateCorner(segmentID, true, false, false, out vector4, out endDir2, out smoothEnd);
+                        Vector3 vector5;
+                        Vector3 vector6;
+                        NetSegment.CalculateMiddlePoints(vector, startDir, vector4, endDir2, smoothStart, smoothEnd, out vector5, out vector6);
+                        Vector3 vector7;
+                        Vector3 vector8;
+                        NetSegment.CalculateMiddlePoints(vector3, startDir2, vector2, endDir, smoothStart, smoothEnd, out vector7, out vector8);
+                        Vector3 position = instance.m_nodes.m_buffer[(int)_this.m_startNode].m_position;
+                        Vector3 position2 = instance.m_nodes.m_buffer[(int)_this.m_endNode].m_position;
+                        Vector4 meshScale = new Vector4(0.5f / info.m_halfWidth, 1f / info.m_segmentLength, 1f, 1f);
+                        Vector4 colorLocation = RenderManager.GetColorLocation((uint)(49152 + segmentID));
+                        Vector4 vector9 = colorLocation;
+                        if (NetNode.BlendJunction(_this.m_startNode))
+                        {
+                            colorLocation = RenderManager.GetColorLocation(86016u + (uint)_this.m_startNode);
+                        }
+                        if (NetNode.BlendJunction(_this.m_endNode))
+                        {
+                            vector9 = RenderManager.GetColorLocation(86016u + (uint)_this.m_endNode);
+                        }
+                        Vector4 vector10 = new Vector4(colorLocation.x, colorLocation.y, vector9.x, vector9.y);
+                        // mod begin
+                        var skin = SegmentDataManager.Instance.SegmentToSegmentDataMap?[segmentID]?.SkinPrefab;
+                        int count;
+                        if (!SkinManager.originalSegmentCounts.TryGetValue(info, out count)) count = info.m_segments.Length; // TODO improve performance? array?
+                        for (int i = 0; i < count; i++)
+                        {
+                            NetInfo.Segment segment = (skin == null) ? info.m_segments[i] : info.m_segments[skin.segmentRedirectMap[i]];
+                            // mod end
+                            bool flag3 = false;
+                            if (segment.m_layer == layer && segment.CheckFlags(_this.m_flags, out flag3) && segment.m_combinedLod != null)
+                            {
+                                Vector4 objectIndex = vector10;
+                                if (segment.m_requireWindSpeed)
+                                {
+                                    objectIndex.w = Singleton<WeatherManager>.instance.GetWindSpeed((position + position2) * 0.5f);
+                                }
+                                else if (flag3)
+                                {
+                                    objectIndex = new Vector4(objectIndex.z, objectIndex.w, objectIndex.x, objectIndex.y);
+                                }
+                                Matrix4x4 leftMatrix;
+                                Matrix4x4 rightMatrix;
+                                if (flag3)
+                                {
+                                    leftMatrix = NetSegment.CalculateControlMatrix(vector2, vector8, vector7, vector3, vector4, vector6, vector5, vector, groupPosition, vScale);
+                                    rightMatrix = NetSegment.CalculateControlMatrix(vector4, vector6, vector5, vector, vector2, vector8, vector7, vector3, groupPosition, vScale);
+                                }
+                                else
+                                {
+                                    leftMatrix = NetSegment.CalculateControlMatrix(vector, vector5, vector6, vector4, vector3, vector7, vector8, vector2, groupPosition, vScale);
+                                    rightMatrix = NetSegment.CalculateControlMatrix(vector3, vector7, vector8, vector2, vector, vector5, vector6, vector4, groupPosition, vScale);
+                                }
+                                NetSegment.PopulateGroupData(info, segment, leftMatrix, rightMatrix, meshScale, objectIndex, ref vertexIndex, ref triangleIndex, data, ref requireSurfaceMaps);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
     }
 }
