@@ -263,9 +263,9 @@ namespace NetworkSkins.Skins
                     }
 
                     // DETAIL
-                    var mainTex = segmentDef.MainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.MainTexPath));
-                    var xysMap = segmentDef.XysPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.XysPath));
-                    var aprMap = segmentDef.AprPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.AprPath));
+                    var mainTex = segmentDef.MainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.MainTexPath), false);
+                    var xysMap = segmentDef.XysPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.XysPath), false);
+                    var aprMap = segmentDef.AprPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.AprPath), false);
 
                     var originalSegment = net.m_segments[segmentDef.Index];
                     if(originalSegment == null)
@@ -299,27 +299,34 @@ namespace NetworkSkins.Skins
                     var lodMaterial = originalSegment.m_lodMaterial;
 
                     // LOD
-                    mainTex = segmentDef.LodMainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodMainTexPath));
-                    xysMap = segmentDef.LodXysPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodXysPath));
-                    aprMap = segmentDef.LodAprPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodAprPath));
+                    mainTex = segmentDef.LodMainTexPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodMainTexPath), true);
+                    xysMap = segmentDef.LodXysPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodXysPath), true);
+                    aprMap = segmentDef.LodAprPath == null ? null : LoadTexture(Path.Combine(basePath, segmentDef.LodAprPath), true);
 
                     if (mainTex != null || xysMap != null || aprMap != null)
                     {
-                        lodMaterial = new Material(lodMaterial);
-
-                        if (mainTex != null)
+                        if (mainTex != null && xysMap != null && aprMap != null)
                         {
-                            lodMaterial.SetTexture("_MainTex", mainTex);
+                            lodMaterial = new Material(lodMaterial);
+
+                            if (mainTex != null)
+                            {
+                                lodMaterial.SetTexture("_MainTex", mainTex);
+                            }
+
+                            if (xysMap != null)
+                            {
+                                lodMaterial.SetTexture("_XYSMap", xysMap);
+                            }
+
+                            if (aprMap != null)
+                            {
+                                lodMaterial.SetTexture("_APRMap", aprMap);
+                            }
                         }
-
-                        if (xysMap != null)
+                        else
                         {
-                            lodMaterial.SetTexture("_XYSMap", xysMap);
-                        }
-
-                        if (aprMap != null)
-                        {
-                            lodMaterial.SetTexture("_APRMap", aprMap);
+                            log.Add($"Not all LOD textures (lod-main, lod-xys, lod-apr) are defined for Skin {DisplayName} (Index {segmentDef.Index})! That will cause rendering issues!");
                         }
                     }
 
@@ -346,16 +353,18 @@ namespace NetworkSkins.Skins
                 net.m_segments = newNetSegmentsArray.ToArray();
             }
 
-            private Texture2D LoadTexture(string texturePath)
+            private Texture2D LoadTexture(string texturePath, bool lod)
             {
                 if (!File.Exists(texturePath)) return null;
 
                 var fileData = File.ReadAllBytes(texturePath);
-                var tex = new Texture2D(2, 2);
+                var tex = new Texture2D(2, 2, TextureFormat.ARGB32, !lod); // no mipmap for LODs
+                tex.name = Path.GetFileNameWithoutExtension(texturePath);
                 tex.LoadImage(fileData);
                 tex.anisoLevel = 8;
-                tex.filterMode = FilterMode.Trilinear;
-                tex.Apply();
+                tex.filterMode = FilterMode.Bilinear;
+                tex.Compress(true);
+                if (!lod) tex.Apply(true, true); else tex.Apply();
 
                 return tex;
             }
