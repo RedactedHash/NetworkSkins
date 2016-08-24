@@ -109,7 +109,7 @@ namespace NetworkSkins.UI
             if (_netToolWrapper == null) throw new Exception("NetworkSkins Error: NetToolWrapper is null!");
 
             // Add some example options
-            GetPage(NetType.Ground).AddUIComponent<UISkinOption>();
+            //GetPage(NetType.Ground).AddUIComponent<UISkinOption>();
             GetPage(NetType.Ground).AddUIComponent<UILightOption>();
             //GetPage(NetType.Ground).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Ground).AddUIComponent<UITreeOption>().LanePosition = LanePosition.Left;
@@ -119,14 +119,14 @@ namespace NetworkSkins.UI
             GetPage(NetType.Ground).AddUIComponent<UITreeOption>().LanePosition = LanePosition.Right;
             //GetPage(NetType.Ground).AddUIComponent<UITreeDistanceOption>().LanePosition = LanePosition.Right;
 
-            GetPage(NetType.Elevated).AddUIComponent<UISkinOption>();
+            //GetPage(NetType.Elevated).AddUIComponent<UISkinOption>();
             GetPage(NetType.Elevated).AddUIComponent<UILightOption>();
             //GetPage(NetType.Elevated).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Elevated).AddUIComponent<UIPillarOption>().PillarType = PillarType.BridgePillar;
             //GetPage(NetType.ELEVATED).AddUIComponent<UIPillarOption>().PillarType = PillarType.MIDDLE_PILLAR;
 
 
-            GetPage(NetType.Bridge).AddUIComponent<UISkinOption>();
+            //GetPage(NetType.Bridge).AddUIComponent<UISkinOption>();
             GetPage(NetType.Bridge).AddUIComponent<UILightOption>();
             //GetPage(NetType.Bridge).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Bridge).AddUIComponent<UIPillarOption>().PillarType = PillarType.BridgePillar;
