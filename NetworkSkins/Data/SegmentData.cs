@@ -18,7 +18,7 @@ namespace NetworkSkins.Data
             TreeMiddle = 2,
             TreeRight = 4,
             StreetLight = 8,
-            NoDecals = 16,
+            Catenary = 16,
             RepeatDistances = 32,
         }
 
@@ -28,6 +28,7 @@ namespace NetworkSkins.Data
         public string TreeMiddle;
         public string TreeRight;
         public string StreetLight;
+        public string Catenary;
         public Vector4 RepeatDistances; // x -> left tree, y -> middle tree, z -> right tree, w -> street light
 
         [NonSerialized]
@@ -38,6 +39,8 @@ namespace NetworkSkins.Data
         public TreeInfo TreeRightPrefab;
         [NonSerialized]
         public PropInfo StreetLightPrefab;
+        [NonSerialized]
+        public PropInfo CatenaryPrefab;
         [NonSerialized]
         public int UsedCount = 0;
 
@@ -52,6 +55,7 @@ namespace NetworkSkins.Data
             TreeMiddle = segmentData.TreeMiddle;
             TreeRight = segmentData.TreeRight;
             StreetLight = segmentData.StreetLight;
+            Catenary = segmentData.Catenary;
             RepeatDistances = segmentData.RepeatDistances;
 
             TreeLeftPrefab = segmentData.TreeLeftPrefab;
@@ -109,6 +113,8 @@ namespace NetworkSkins.Data
                 s.WriteSharedString(TreeRight);
             if (Features.IsFlagSet(FeatureFlags.StreetLight))
                 s.WriteSharedString(StreetLight);
+            if (Features.IsFlagSet(FeatureFlags.Catenary))
+                s.WriteSharedString(Catenary);
             if (Features.IsFlagSet(FeatureFlags.RepeatDistances))
                 s.WriteVector4(RepeatDistances);
         }
@@ -125,6 +131,8 @@ namespace NetworkSkins.Data
                 TreeRight = s.ReadSharedString();
             if (Features.IsFlagSet(FeatureFlags.StreetLight))
                 StreetLight = s.ReadSharedString();
+            if (Features.IsFlagSet(FeatureFlags.Catenary))
+                Catenary = s.ReadSharedString();
             if (Features.IsFlagSet(FeatureFlags.RepeatDistances))
                 RepeatDistances = s.ReadVector4();
         }
@@ -145,9 +153,8 @@ namespace NetworkSkins.Data
                 && string.Equals(TreeMiddle, other.TreeMiddle)
                 && string.Equals(TreeRight, other.TreeRight)
                 && string.Equals(StreetLight, other.StreetLight)
-                && (Features.IsFlagSet(FeatureFlags.RepeatDistances) 
-                ? Vector4.Equals(RepeatDistances, other.RepeatDistances) 
-                : !other.Features.IsFlagSet(FeatureFlags.RepeatDistances));
+                && string.Equals(Catenary, other.Catenary)
+                && (!Features.IsFlagSet(FeatureFlags.RepeatDistances) || Vector4.Equals(RepeatDistances, other.RepeatDistances));
         }
 
         public override int GetHashCode()
@@ -159,6 +166,7 @@ namespace NetworkSkins.Data
                 hashCode = (hashCode*397) ^ (TreeMiddle?.GetHashCode() ?? 0);
                 hashCode = (hashCode*397) ^ (TreeRight?.GetHashCode() ?? 0);
                 hashCode = (hashCode*397) ^ (StreetLight?.GetHashCode() ?? 0);
+                hashCode = (hashCode * 397) ^ (Catenary?.GetHashCode() ?? 0);
                 hashCode = (hashCode*397) ^ (Features.IsFlagSet(FeatureFlags.RepeatDistances) ? RepeatDistances.GetHashCode() : 0);
                 return hashCode;
             }
@@ -180,6 +188,7 @@ namespace NetworkSkins.Data
             FindPrefab(TreeMiddle, out TreeMiddlePrefab);
             FindPrefab(TreeRight, out TreeRightPrefab);
             FindPrefab(StreetLight, out StreetLightPrefab);
+            FindPrefab(Catenary, out CatenaryPrefab);
         }
 
         private static void FindPrefab<T>(string prefabName, out T prefab) where T : PrefabInfo

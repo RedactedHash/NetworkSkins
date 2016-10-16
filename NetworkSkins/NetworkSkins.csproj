@@ -80,6 +80,7 @@
     <Compile Include="Data\SegmentData.cs" />
     <Compile Include="Net\LanePosition.cs" />
     <Compile Include="Props\UILightDistanceOption.cs" />
+    <Compile Include="Props\UICatenaryOption.cs" />
     <Compile Include="Props\UILightOption.cs" />
     <Compile Include="Props\UITreeDistanceOption.cs" />
     <Compile Include="Props\UITreeOption.cs" />

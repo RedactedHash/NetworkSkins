@@ -16,8 +16,11 @@ namespace NetworkSkins.Props
 
         private readonly List<TreeInfo> _availableTrees = new List<TreeInfo>();
         private readonly List<PropInfo> _availableStreetLights = new List<PropInfo>();
+        private readonly List<PropInfo> _available2LCatenaries = new List<PropInfo>();
+        private readonly List<PropInfo> _available1LCatenaries = new List<PropInfo>();
 
         public int[] StreetLightPrefabDataIndices;
+        public int[] CatenaryPrefabDataIndices;
 
         public override void OnCreated(ILoading loading)
         {
@@ -77,6 +80,44 @@ namespace NetworkSkins.Props
 
             // compile list of data indices for fast check if a prefab is a street light:
             StreetLightPrefabDataIndices = _availableStreetLights.Where(prop => prop != null).Select(prop => prop.m_prefabDataIndex).ToArray();
+
+            // no catenaries
+            _available1LCatenaries.Add(null);
+            _available2LCatenaries.Add(null);
+
+            for (uint i = 0; i < PrefabCollection<PropInfo>.LoadedCount(); i++)
+            {
+                var prefab = PrefabCollection<PropInfo>.GetLoaded(i);
+
+                if (prefab == null) continue;
+
+                // catenary replacer mod
+                if (prefab.name.StartsWith("774449380.Catenary"))
+                {
+                    if (prefab.name.Contains("1"))
+                    {
+                        _available1LCatenaries.Add(prefab);
+                    }
+                    else
+                    {
+                        _available2LCatenaries.Add(prefab);
+                    }
+                }
+                // default catenaries
+                else if (prefab.name == "RailwayPowerline")
+                {
+                    _available2LCatenaries.Add(prefab);
+                }
+                // one way tracks
+                else if (prefab.name == "724382534.Rail1LPowerLine_Data")
+                {
+                    _available1LCatenaries.Add(prefab);
+                }
+            }
+
+            // compile list of data indices for fast check if a prefab is a catenary:
+            CatenaryPrefabDataIndices = _available2LCatenaries.Where(prop => prop != null).Select(prop => prop.m_prefabDataIndex)
+                .Concat(_available1LCatenaries.Where(prop => prop != null).Select(prop => prop.m_prefabDataIndex)).ToArray();
         }
 
         public override void OnLevelUnloading()
@@ -121,6 +162,24 @@ namespace NetworkSkins.Props
             return false;
         }
 
+        public int HasCatenaries(NetInfo prefab)
+        {
+            if (prefab?.m_lanes == null) return 0;
+
+            foreach (var lane in prefab.m_lanes)
+                if (lane?.m_laneProps?.m_props != null)
+                    foreach (var laneProp in lane.m_laneProps.m_props)
+                    {
+                        if (laneProp?.m_finalProp != null)
+                        {
+                            if (_available2LCatenaries.Contains(laneProp?.m_finalProp)) return 2;
+                            else if (_available1LCatenaries.Contains(laneProp?.m_finalProp)) return 1;
+                        }
+                    }
+
+            return 0;
+        }
+
         public List<TreeInfo> GetAvailableTrees(NetInfo prefab)
         {
             return _availableTrees;
@@ -129,6 +188,21 @@ namespace NetworkSkins.Props
         public List<PropInfo> GetAvailableStreetLights(NetInfo prefab)
         {
             return _availableStreetLights;
+        }
+
+        public List<PropInfo> GetAvailableCatenaries(NetInfo prefab)
+        {
+            int catenaryType = HasCatenaries(prefab);
+
+            switch (catenaryType)
+            {
+                case 1:
+                    return _available1LCatenaries;
+                case 2:
+                    return _available2LCatenaries;
+                default:
+                    return new List<PropInfo>();
+            }
         }
 
         public TreeInfo GetActiveTree(NetInfo prefab, LanePosition position)
@@ -165,6 +239,20 @@ namespace NetworkSkins.Props
             }
         }
 
+        public PropInfo GetActiveCatenary(NetInfo prefab)
+        {
+            var segmentData = SegmentDataManager.Instance.GetActiveOptions(prefab);
+
+            if (segmentData == null || !segmentData.Features.IsFlagSet(SegmentData.FeatureFlags.Catenary))
+            {
+                return GetDefaultCatenary(prefab);
+            }
+            else
+            {
+                return segmentData.CatenaryPrefab;
+            }
+        }
+
         public TreeInfo GetDefaultTree(NetInfo prefab, LanePosition position)
         {
             if (prefab.m_lanes == null) return null;
@@ -188,6 +276,25 @@ namespace NetworkSkins.Props
                     foreach (var laneProp in lane.m_laneProps.m_props)
                     {
                         if (laneProp?.m_finalProp != null && _availableStreetLights.Contains(laneProp.m_finalProp)) return laneProp.m_finalProp;
+                    }
+
+            return null;
+        }
+
+        public PropInfo GetDefaultCatenary(NetInfo prefab)
+        {
+            if (prefab.m_lanes == null) return null;
+
+            foreach (var lane in prefab.m_lanes)
+                if (lane?.m_laneProps?.m_props != null)
+                    foreach (var laneProp in lane.m_laneProps.m_props)
+                    {
+                        if (laneProp?.m_finalProp == null) continue;
+                        if (_available1LCatenaries.Contains(laneProp.m_finalProp)
+                            || _available2LCatenaries.Contains(laneProp.m_finalProp))
+                        {
+                            return laneProp.m_finalProp;
+                        }
                     }
 
             return null;
@@ -220,6 +327,22 @@ namespace NetworkSkins.Props
             else
             {
                 newSegmentData.UnsetFeature(SegmentData.FeatureFlags.StreetLight);
+            }
+
+            SegmentDataManager.Instance.SetActiveOptions(prefab, newSegmentData);
+        }
+
+        public void SetCatenary(NetInfo prefab, PropInfo prop)
+        {
+            var newSegmentData = new SegmentData(SegmentDataManager.Instance.GetActiveOptions(prefab));
+
+            if (prop != GetDefaultCatenary(prefab))
+            {
+                newSegmentData.SetPrefabFeature(SegmentData.FeatureFlags.Catenary, prop);
+            }
+            else
+            {
+                newSegmentData.UnsetFeature(SegmentData.FeatureFlags.Catenary);
             }
 
             SegmentDataManager.Instance.SetActiveOptions(prefab, newSegmentData);

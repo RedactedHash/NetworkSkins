@@ -17,13 +17,7 @@ namespace NetworkSkins
         private UINetworkSkinsPanel panel;
 
         public string Name => "Network Skins";
-        public string Description
-        {
-            get
-            {
-                return "Change the visual appearance of roads, train tracks and other networks";
-            }
-        }
+        public string Description => "Change the visual appearance of roads, train tracks and other networks";
 
         public override void OnCreated(ILoading loading)
         {

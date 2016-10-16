@@ -108,6 +108,7 @@ namespace NetworkSkins.Props
                 // mod begin
                 var _this = NetManager.instance.m_lanes.m_buffer[laneID];
                 var streetLightPrefabDataIndices = PropCustomizer.Instance.StreetLightPrefabDataIndices;
+                var catenaryPrefabDataIndices = PropCustomizer.Instance.CatenaryPrefabDataIndices;
                 var segmentData = SegmentDataManager.Instance.SegmentToSegmentDataMap?[_this.m_segment];
                 // mod end
 
@@ -137,6 +138,16 @@ namespace NetworkSkins.Props
                                     if (segmentData.RepeatDistances.w > 0f)
                                     {
                                         repeatDistance = segmentData.RepeatDistances.w;
+                                    }
+                                }
+
+                                var customCatenary = (segmentData.Features & SegmentData.FeatureFlags.Catenary) != 0;
+
+                                if (customCatenary)
+                                {
+                                    if (catenaryPrefabDataIndices.Contains(finalProp.m_prefabDataIndex))
+                                    {
+                                        finalProp = segmentData.CatenaryPrefab;
                                     }
                                 }
                             }
@@ -337,6 +348,7 @@ namespace NetworkSkins.Props
                 // mod begin
                 var _this = NetManager.instance.m_lanes.m_buffer[laneID];
                 var streetLightPrefabDataIndices = PropCustomizer.Instance.StreetLightPrefabDataIndices;
+                var catenaryPrefabDataIndices = PropCustomizer.Instance.CatenaryPrefabDataIndices;
                 var segmentData = SegmentDataManager.Instance.SegmentToSegmentDataMap?[_this.m_segment];
                 // mod end
 
@@ -368,6 +380,16 @@ namespace NetworkSkins.Props
                                     if (segmentData.RepeatDistances.w > 0f)
                                     {
                                         repeatDistance = segmentData.RepeatDistances.w;
+                                    }
+                                }
+
+                                var customCatenary = (segmentData.Features & SegmentData.FeatureFlags.Catenary) != 0;
+
+                                if (customCatenary)
+                                {
+                                    if (catenaryPrefabDataIndices.Contains(finalProp.m_prefabDataIndex))
+                                    {
+                                        finalProp = segmentData.CatenaryPrefab;
                                     }
                                 }
                             }
@@ -596,6 +618,7 @@ namespace NetworkSkins.Props
                 // mod begin
                 var _this = NetManager.instance.m_lanes.m_buffer[laneID];
                 var streetLightPrefabDataIndices = PropCustomizer.Instance.StreetLightPrefabDataIndices;
+                var catenaryPrefabDataIndices = PropCustomizer.Instance.CatenaryPrefabDataIndices;
                 var segmentData = SegmentDataManager.Instance.SegmentToSegmentDataMap?[_this.m_segment];
                 // mod end
 
@@ -627,6 +650,16 @@ namespace NetworkSkins.Props
                                         if (segmentData.RepeatDistances.w > 0f)
                                         {
                                             repeatDistance = segmentData.RepeatDistances.w;
+                                        }
+                                    }
+
+                                    var customCatenary = (segmentData.Features & SegmentData.FeatureFlags.Catenary) != 0;
+
+                                    if (customCatenary)
+                                    {
+                                        if (catenaryPrefabDataIndices.Contains(finalProp.m_prefabDataIndex))
+                                        {
+                                            finalProp = segmentData.CatenaryPrefab;
                                         }
                                     }
                                 }
@@ -767,6 +800,7 @@ namespace NetworkSkins.Props
                 // mod begin
                 var _this = NetManager.instance.m_lanes.m_buffer[laneID];
                 var streetLightPrefabDataIndices = PropCustomizer.Instance.StreetLightPrefabDataIndices;
+                var catenaryPrefabDataIndices = PropCustomizer.Instance.CatenaryPrefabDataIndices;
                 var segmentData = SegmentDataManager.Instance.SegmentToSegmentDataMap?[_this.m_segment];
                 // mod end
 
@@ -800,6 +834,16 @@ namespace NetworkSkins.Props
                                         if (segmentData.RepeatDistances.w > 0f)
                                         {
                                             repeatDistance = segmentData.RepeatDistances.w;
+                                        }
+                                    }
+
+                                    var customCatenary = (segmentData.Features & SegmentData.FeatureFlags.Catenary) != 0;
+
+                                    if (customCatenary)
+                                    {
+                                        if (catenaryPrefabDataIndices.Contains(finalProp.m_prefabDataIndex))
+                                        {
+                                            finalProp = segmentData.CatenaryPrefab;
                                         }
                                     }
                                 }

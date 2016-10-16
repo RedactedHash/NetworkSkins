@@ -107,22 +107,24 @@ namespace NetworkSkins.UI
             _netToolWrapper = NetUtil.GenerateNetToolWrapper();
             if (_netToolWrapper == null) throw new Exception("NetworkSkins Error: NetToolWrapper is null!");
 
+            GetPage(NetType.Tunnel).AddUIComponent<UICatenaryOption>();
+
             // Add some example options
             GetPage(NetType.Ground).AddUIComponent<UILightOption>();
-            //GetPage(NetType.Ground).AddUIComponent<UILightDistanceOption>();
+            GetPage(NetType.Ground).AddUIComponent<UICatenaryOption>();
             GetPage(NetType.Ground).AddUIComponent<UITreeOption>().LanePosition = LanePosition.Left;
-            //GetPage(NetType.Ground).AddUIComponent<UITreeDistanceOption>().LanePosition = LanePosition.Left;
             GetPage(NetType.Ground).AddUIComponent<UITreeOption>().LanePosition = LanePosition.Middle;
-            //GetPage(NetType.Ground).AddUIComponent<UITreeDistanceOption>().LanePosition = LanePosition.Middle;
             GetPage(NetType.Ground).AddUIComponent<UITreeOption>().LanePosition = LanePosition.Right;
-            //GetPage(NetType.Ground).AddUIComponent<UITreeDistanceOption>().LanePosition = LanePosition.Right;
+
 
             GetPage(NetType.Elevated).AddUIComponent<UILightOption>();
+            GetPage(NetType.Elevated).AddUIComponent<UICatenaryOption>();
             //GetPage(NetType.Elevated).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Elevated).AddUIComponent<UIPillarOption>().PillarType = PillarType.BridgePillar;
             //GetPage(NetType.ELEVATED).AddUIComponent<UIPillarOption>().PillarType = PillarType.MIDDLE_PILLAR;
 
             GetPage(NetType.Bridge).AddUIComponent<UILightOption>();
+            GetPage(NetType.Bridge).AddUIComponent<UICatenaryOption>();
             //GetPage(NetType.Bridge).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Bridge).AddUIComponent<UIPillarOption>().PillarType = PillarType.BridgePillar;
             //GetPage(NetType.BRIDGE).AddUIComponent<UIPillarOption>().PillarType = PillarType.MIDDLE_PILLAR;
@@ -208,6 +210,8 @@ namespace NetworkSkins.UI
                 {
                     var tabName = NetUtil.NET_TYPE_NAMES[i];
 
+                    Debug.Log("Checking Tab " + tabName + ", subprefab: " + _subPrefabs[i]?.name);
+
                     if (_subPrefabs[i] != null)
                     {
                         if (firstVisibleIndex < 0) firstVisibleIndex = i;
@@ -219,9 +223,13 @@ namespace NetworkSkins.UI
                             var option = component as UIOption;
                             if (option == null) continue;
 
+                            Debug.Log("Checking Option " + option.name);
+
                             // Pass the current prefab to the context-sensitive option
                             if (option.Populate(_subPrefabs[i])) visibleOptionCount++;
                         }
+
+                        Debug.Log("Visible Option Count: " + visibleOptionCount);
 
                         if (visibleOptionCount > 0)
                         {
