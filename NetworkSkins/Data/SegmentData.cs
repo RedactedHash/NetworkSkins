@@ -19,7 +19,7 @@ namespace NetworkSkins.Data
             TreeMiddle = 2,
             TreeRight = 4,
             StreetLight = 8,
-            NoDecals = 16,
+            GroundTexture = 16,
             RepeatDistances = 32,
             CreatePavement = 64,
             CreateGravel = 128,
@@ -67,6 +67,12 @@ namespace NetworkSkins.Data
             TreeRightPrefab = segmentData.TreeRightPrefab;
             StreetLightPrefab = segmentData.StreetLightPrefab;
             SkinPrefab = segmentData.SkinPrefab;
+        }
+
+        public void ToggleFeature(FeatureFlags feature, bool value)
+        {
+            if (value) Features = Features.SetFlags(feature);
+            else Features = Features.ClearFlags(feature);
         }
 
         public void SetPrefabFeature<P>(FeatureFlags feature, P prefab = null) where P : PrefabInfo

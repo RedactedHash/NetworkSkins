@@ -66,7 +66,7 @@ namespace NetworkSkins.Data
 
         private const string SegmentDataId = "NetworkSkins_SEGMENTS";
         private const string SelectedOptionsId = "NetworkSkins_SELECTED_OPTIONS";
-        private const uint DataVersion = 0;
+        private const uint DataVersion = 2;
 
         public static SegmentDataManager Instance;
 

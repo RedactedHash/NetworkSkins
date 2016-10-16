@@ -24,7 +24,7 @@ namespace NetworkSkins.Skins
 
         public static SkinManager Instance;
 
-        /*
+        
         public override void OnCreated(ILoading loading)
         {
             base.OnCreated(loading);
@@ -70,7 +70,7 @@ namespace NetworkSkins.Skins
 
             Instance = null;
         }
-        */
+        
 
         public void ParseSkinDefs()
         {
@@ -150,7 +150,7 @@ namespace NetworkSkins.Skins
         public SkinsDefinition.Skin GetSkin(string id)
         {
             SkinsDefinition.Skin skin = null;
-            skinMap.TryGetValue(id, out skin);
+            if(id != null) skinMap.TryGetValue(id, out skin);
 
             return skin;
         }

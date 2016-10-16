@@ -46,6 +46,7 @@ namespace NetworkSkins.Skins
                 else
                 {
                     DropDown.Disable();
+                    return false;
                 }
                 return true;
             }

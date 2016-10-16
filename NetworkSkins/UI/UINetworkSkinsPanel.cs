@@ -8,6 +8,7 @@ using NetworkSkins.Pillars;
 using NetworkSkins.Props;
 using NetworkSkins.Skins;
 using UnityEngine;
+using NetworkSkins.Ground;
 
 namespace NetworkSkins.UI
 {
@@ -109,7 +110,7 @@ namespace NetworkSkins.UI
             if (_netToolWrapper == null) throw new Exception("NetworkSkins Error: NetToolWrapper is null!");
 
             // Add some example options
-            //GetPage(NetType.Ground).AddUIComponent<UISkinOption>();
+            GetPage(NetType.Ground).AddUIComponent<UISkinOption>();
             GetPage(NetType.Ground).AddUIComponent<UILightOption>();
             //GetPage(NetType.Ground).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Ground).AddUIComponent<UITreeOption>().LanePosition = LanePosition.Left;
@@ -118,15 +119,16 @@ namespace NetworkSkins.UI
             //GetPage(NetType.Ground).AddUIComponent<UITreeDistanceOption>().LanePosition = LanePosition.Middle;
             GetPage(NetType.Ground).AddUIComponent<UITreeOption>().LanePosition = LanePosition.Right;
             //GetPage(NetType.Ground).AddUIComponent<UITreeDistanceOption>().LanePosition = LanePosition.Right;
+            GetPage(NetType.Ground).AddUIComponent<UIGroundOption>();
 
-            //GetPage(NetType.Elevated).AddUIComponent<UISkinOption>();
+            GetPage(NetType.Elevated).AddUIComponent<UISkinOption>();
             GetPage(NetType.Elevated).AddUIComponent<UILightOption>();
             //GetPage(NetType.Elevated).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Elevated).AddUIComponent<UIPillarOption>().PillarType = PillarType.BridgePillar;
             //GetPage(NetType.ELEVATED).AddUIComponent<UIPillarOption>().PillarType = PillarType.MIDDLE_PILLAR;
 
 
-            //GetPage(NetType.Bridge).AddUIComponent<UISkinOption>();
+            GetPage(NetType.Bridge).AddUIComponent<UISkinOption>();
             GetPage(NetType.Bridge).AddUIComponent<UILightOption>();
             //GetPage(NetType.Bridge).AddUIComponent<UILightDistanceOption>();
             GetPage(NetType.Bridge).AddUIComponent<UIPillarOption>().PillarType = PillarType.BridgePillar;
@@ -206,6 +208,8 @@ namespace NetworkSkins.UI
                 var visibleTabCount = 0;
                 var firstVisibleIndex = -1;
 
+                var requiredHeight = 0;
+
                 // Populate tabs and options
                 for (var i = 0; i < _subPrefabs.Length; i++) 
                 {
@@ -229,6 +233,7 @@ namespace NetworkSkins.UI
                         if (visibleOptionCount > 0)
                         {
                             visibleTabCount++;
+                            requiredHeight = Math.Max(requiredHeight, visibleOptionCount * (30 + Padding));
                             _tabstrip.ShowTab(tabName);
                         }
                         else
@@ -260,6 +265,10 @@ namespace NetworkSkins.UI
                 }
 
                 isVisible = visibleTabCount > 0;
+
+                _tabstrip.tabPages.height = requiredHeight + 2 * PagesPadding;
+                this.FitChildren();
+
                 return;
             }
 
