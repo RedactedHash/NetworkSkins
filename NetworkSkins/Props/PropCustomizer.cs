@@ -110,7 +110,7 @@ namespace NetworkSkins.Props
                     _available2LCatenaries.Add(prefab);
                 }
                 // one way tracks
-                else if (prefab.name == "724382534.Rail1LPowerLine_Data")
+                else if (prefab.name == "RailwayPowerline Singular")
                 {
                     _available1LCatenaries.Add(prefab);
                 }
