@@ -1,5 +1,6 @@
-﻿using ColossalFramework.Plugins;
-using ColossalFramework.Steamworks;
+﻿using System;
+using System.Linq;
+using ColossalFramework.Plugins;
 using ColossalFramework.UI;
 using ICities;
 using NetworkSkins.Data;
@@ -12,8 +13,6 @@ namespace NetworkSkins
 {
     public class NetworkSkinsMod : LoadingExtensionBase, IUserMod
     {
-        private const ulong workshopId = 543722850UL;
-
         private UINetworkSkinsPanel panel;
 
         public string Name => "Network Skins";
@@ -68,18 +67,39 @@ namespace NetworkSkins
             NetManagerDetour.Revert();
         }
 
-        public static string GetModPath() // TODO works on mac???
+        public static string AssemblyPath => PluginInfo.modPath;
+
+        private static PluginManager.PluginInfo PluginInfo
         {
-            foreach (var current in PluginManager.instance.GetPluginsInfo())
+            get
             {
-                if (current.publishedFileID.AsUInt64 == workshopId || current.name.Contains("NetworkSkins")) return current.modPath;
+                var pluginManager = PluginManager.instance;
+                var plugins = pluginManager.GetPluginsInfo();
+
+                foreach (var item in plugins)
+                {
+                    try
+                    {
+                        var instances = item.GetInstances<IUserMod>();
+                        if (!(instances.FirstOrDefault() is NetworkSkinsMod))
+                        {
+                            continue;
+                        }
+                        return item;
+                    }
+                    catch
+                    {
+
+                    }
+                }
+                throw new Exception("Failed to find Network Skins assembly!");
+
             }
-            return "";
         }
 
         public static bool CheckLoadMode(LoadMode mode) 
         {
-            return mode == LoadMode.LoadGame || mode == LoadMode.NewGame || mode == LoadMode.LoadMap || mode == LoadMode.NewMap;
+            return mode == LoadMode.LoadGame || mode == LoadMode.NewGame || mode == LoadMode.LoadMap || mode == LoadMode.NewMap || mode == LoadMode.NewGameFromScenario;
         }
     }
 }
